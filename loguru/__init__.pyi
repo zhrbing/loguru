@@ -17,6 +17,12 @@
 .. _postponed evaluation of annotations: https://www.python.org/dev/peps/pep-0563/
 .. |future| replace:: ``__future__``
 .. _future: https://www.python.org/dev/peps/pep-0563/#enabling-the-future-behavior-in-python-3-7
+.. |loguru-mypy| replace:: ``loguru-mypy``
+.. _loguru-mypy: https://github.com/kornicameister/loguru-mypy
+.. |documentation of loguru-mypy| replace:: documentation of ``loguru-mypy``
+.. _documentation of loguru-mypy:
+    https://github.com/kornicameister/loguru-mypy/blob/master/README.md
+.. _@kornicameister: https://github.com/kornicameister
 
 Loguru relies on a `stub file`_ to document its types. This implies that these types are not
 accessible during execution of your program, however they can be used by type checkers and IDE.
@@ -66,7 +72,21 @@ listed here and might be useful to type hint your code:
 - ``RecordProcess``: the ``record["process"]`` with ``id`` and ``name`` attributes.
 - ``RecordException``: the ``record["exception"]`` with ``type``, ``value`` and ``traceback``
   attributes.
+
+If that is not enough, one can also use the |loguru-mypy|_ library developed by `@kornicameister`_.
+Plugin can be installed separately using::
+
+    pip install loguru-mypy
+
+It helps to catch several possible runtime errors by performing additional checks like:
+
+- ``opt(lazy=True)`` loggers accepting only ``typing.Callable[[], typing.Any]`` arguments
+- ``opt(record=True)`` loggers wrongly calling log handler like so ``logger.info(..., record={})``
+- and even more...
+
+For more details, go to official |documentation of loguru-mypy|_.
 """
+
 import sys
 from asyncio import AbstractEventLoop
 from datetime import datetime, time, timedelta
@@ -102,12 +122,13 @@ if sys.version_info >= (3, 6):
     from typing import ContextManager
 else:
     from pathlib import PurePath as PathLike
+
     from typing_extensions import ContextManager
 
 if sys.version_info >= (3, 8):
-    from typing import TypedDict, Protocol
+    from typing import Protocol, TypedDict
 else:
-    from typing_extensions import TypedDict, Protocol
+    from typing_extensions import Protocol, TypedDict
 
 _T = TypeVar("_T")
 _F = TypeVar("_F", bound=Callable[..., Any])
@@ -155,7 +176,7 @@ class RecordException(NamedTuple):
 class Record(TypedDict):
     elapsed: timedelta
     exception: Optional[RecordException]
-    extra: dict
+    extra: Dict[Any, Any]
     file: RecordFile
     function: str
     level: RecordLevel
@@ -183,7 +204,7 @@ CompressionFunction = Callable[[str], None]
 
 # Actually unusable because TypedDict can't allow extra keys: python/mypy#4617
 class _HandlerConfig(TypedDict, total=False):
-    sink: Union[str, PathLike, TextIO, Writable, Callable[[Message], None], Handler]
+    sink: Union[str, PathLike[str], TextIO, Writable, Callable[[Message], None], Handler]
     level: Union[str, int]
     format: Union[str, FormatFunction]
     filter: Optional[Union[str, FilterFunction, FilterDict]]
@@ -237,7 +258,7 @@ class Logger:
     @overload
     def add(
         self,
-        sink: Union[str, PathLike],
+        sink: Union[str, PathLike[str]],
         *,
         level: Union[str, int] = ...,
         format: Union[str, FormatFunction] = ...,
@@ -308,19 +329,32 @@ class Logger:
         *,
         handlers: Sequence[Dict[str, Any]] = ...,
         levels: Optional[Sequence[LevelConfig]] = ...,
-        extra: Optional[dict] = ...,
+        extra: Optional[Dict[Any, Any]] = ...,
         patcher: Optional[PatcherFunction] = ...,
         activation: Optional[Sequence[ActivationConfig]] = ...
     ) -> List[int]: ...
-    # @overload should be used to differentiate bytes and str once python/mypy#7781 is fixed
-    @staticmethod
+    # @staticmethod cannot be used with @overload in mypy (python/mypy#7781).
+    # However Logger is not exposed and logger is an instance of Logger
+    # so for type checkers it is all the same whether it is defined here
+    # as a static method or an instance method.
+    @overload
     def parse(
-        file: Union[str, PathLike, TextIO, BinaryIO],
-        pattern: Union[str, bytes, Pattern[str], Pattern[bytes]],
+        self,
+        file: Union[str, PathLike[str], TextIO],
+        pattern: Union[str, Pattern[str]],
         *,
-        cast: Union[dict, Callable[[dict], None]] = ...,
+        cast: Union[Dict[str, Callable[[str], Any]], Callable[[Dict[str, str]], None]] = ...,
         chunk: int = ...
-    ) -> Generator[dict, None, None]: ...
+    ) -> Generator[Dict[str, Any], None, None]: ...
+    @overload
+    def parse(
+        self,
+        file: BinaryIO,
+        pattern: Union[bytes, Pattern[bytes]],
+        *,
+        cast: Union[Dict[str, Callable[[bytes], Any]], Callable[[Dict[str, bytes]], None]] = ...,
+        chunk: int = ...
+    ) -> Generator[Dict[str, Any], None, None]: ...
     @overload
     def trace(__self, __message: str, *args: Any, **kwargs: Any) -> None: ...
     @overload

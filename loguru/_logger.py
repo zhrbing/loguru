@@ -74,14 +74,13 @@ import asyncio
 import builtins
 import contextlib
 import functools
-import inspect
 import itertools
 import logging
 import re
 import sys
 import warnings
 from collections import namedtuple
-from inspect import isclass
+from inspect import isclass, iscoroutinefunction, isgeneratorfunction
 from multiprocessing import current_process
 from os.path import basename, splitext
 from threading import current_thread
@@ -790,7 +789,7 @@ class Logger:
             encoding = getattr(sink, "encoding", None)
             terminator = ""
             exception_prefix = "\n"
-        elif inspect.iscoroutinefunction(sink):
+        elif iscoroutinefunction(sink) or iscoroutinefunction(getattr(sink, "__call__", None)):
             name = getattr(sink, "__name__", None) or repr(sink)
 
             if colorize is None:
@@ -806,7 +805,8 @@ class Logger:
             if enqueue and loop is None:
                 loop = asyncio.get_event_loop()
 
-            wrapped_sink = AsyncSink(sink, loop, error_interceptor)
+            coro = sink if iscoroutinefunction(sink) else sink.__call__
+            wrapped_sink = AsyncSink(coro, loop, error_interceptor)
             encoding = "utf8"
             terminator = "\n"
             exception_prefix = ""
@@ -865,7 +865,7 @@ class Logger:
                 if levelno_ < 0:
                     raise ValueError(
                         "The filter dict contains a module '%s' associated to an invalid level, "
-                        "it should be a positive interger, not: '%d'" % (module, levelno_)
+                        "it should be a positive integer, not: '%d'" % (module, levelno_)
                     )
                 level_per_module[module] = levelno_
             filter_func = functools.partial(
@@ -1199,14 +1199,14 @@ class Logger:
             def __call__(_, function):
                 catcher = Catcher(True)
 
-                if inspect.iscoroutinefunction(function):
+                if iscoroutinefunction(function):
 
                     async def catch_wrapper(*args, **kwargs):
                         with catcher:
                             return await function(*args, **kwargs)
                         return default
 
-                elif inspect.isgeneratorfunction(function):
+                elif isgeneratorfunction(function):
 
                     def catch_wrapper(*args, **kwargs):
                         with catcher:
@@ -1914,7 +1914,7 @@ class Logger:
             "function": code.co_name,
             "level": RecordLevel(level_name, level_no, level_icon),
             "line": frame.f_lineno,
-            "message": message,
+            "message": str(message),
             "module": splitext(file_name)[0],
             "name": name,
             "process": RecordProcess(process.ident, process.name),
@@ -1941,7 +1941,7 @@ class Logger:
             if args or kwargs:
                 colored_message = Colorizer.prepare_message(message, args, kwargs)
             else:
-                colored_message = Colorizer.prepare_simple_message(message)
+                colored_message = Colorizer.prepare_simple_message(str(message))
             log_record["message"] = colored_message.stripped
         elif args or kwargs:
             colored_message = None

@@ -110,12 +110,11 @@ def test_safe_removing_while_logging(capsys):
     assert sink.written == "aaa0bbb\n"
 
 
-
 def test_safe_writing_after_removing(capsys):
     barrier = Barrier(2)
 
+    logger.add(NonSafeSink(1), format="{message}", catch=False)
     i = logger.add(NonSafeSink(1), format="{message}", catch=False)
-    j = logger.add(NonSafeSink(1), format="{message}", catch=False)
 
     def write():
         barrier.wait()
@@ -124,7 +123,7 @@ def test_safe_writing_after_removing(capsys):
     def remove():
         barrier.wait()
         time.sleep(0.5)
-        logger.remove(j)
+        logger.remove(i)
 
     threads = [Thread(target=write), Thread(target=remove)]
 

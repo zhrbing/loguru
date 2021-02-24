@@ -140,7 +140,7 @@ def test_coroutine_function():
 def test_coroutine_function_without_name(monkeypatch):
     async_function = Wrapper(lambda _: None, repr="<AsyncFunctionWithout>", name=None)
     monkeypatch.setattr(
-        loguru._logger.inspect,
+        loguru._logger,
         "iscoroutinefunction",
         lambda x: x is async_function or iscoroutinefunction(x),
     )
@@ -155,7 +155,7 @@ def test_coroutine_function_without_name(monkeypatch):
 def test_coroutine_function_with_empty_name(monkeypatch):
     async_function = Wrapper(lambda _: None, repr="<AsyncFunctionEmpty>", name="")
     monkeypatch.setattr(
-        loguru._logger.inspect,
+        loguru._logger,
         "iscoroutinefunction",
         lambda x: x is async_function or iscoroutinefunction(x),
     )
@@ -179,7 +179,12 @@ def test_standard_handler():
 def test_multiple_handlers():
     logger.add(sys.__stdout__)
     logger.add(sys.__stderr__)
-    r = "<loguru.logger handlers=[(id=0, level=10, sink=<stdout>), (id=1, level=10, sink=<stderr>)]>"
+    r = (
+        "<loguru.logger handlers=["
+        "(id=0, level=10, sink=<stdout>), "
+        "(id=1, level=10, sink=<stderr>)"
+        "]>"
+    )
     assert repr(logger) == r
 
 

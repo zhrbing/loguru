@@ -162,7 +162,7 @@ This can be achieved using a custom sink for the client and |patch| for the serv
                 while len(chunk) < slen:
                     chunk = chunk + self.connection.recv(slen - len(chunk))
                 record = pickle.loads(chunk)
-                level, message = record["level"], record["message"]
+                level, message = record["level"].no, record["message"]
                 logger.patch(lambda record: record.update(record)).log(level, message)
 
     server = socketserver.TCPServer(('localhost', 9999), LoggingStreamHandler)
@@ -368,6 +368,42 @@ The ``rotation`` argument of file sinks accept size or time limits but not both 
     # Rotate file if over 500 MB or at midnight every day
     rotator = Rotator(size=5e+8, at=datetime.time(0, 0, 0))
     logger.add("file.log", rotation=rotator.should_rotate)
+
+
+Adapting colors and format of logged messages dynamically
+---------------------------------------------------------
+
+It is possible to customize the colors of your logs thanks to several :ref:`markup tags <color>`. Those are used to configure the ``format`` of your handler. By creating a appropriate formatting function, you can easily define colors depending on the logged message.
+
+For example, if you want to associate each module with a unique color::
+
+    from collections import defaultdict
+    from random import choice
+
+    colors = ["blue", "cyan", "green", "magenta", "red", "yellow"]
+    color_per_module = defaultdict(lambda: choice(colors))
+
+    def formatter(record):
+        color_tag = color_per_module[record["name"]]
+        return "<" + color_tag + ">[{name}]</> <bold>{message}</>\n{exception}"
+
+    logger.add(sys.stderr, format=formatter)
+
+
+If you need to dynamically colorize the ``record["message"]``, make sure that the color tags appear in the returned format instead of modifying the message::
+
+    def rainbow(text):
+        colors = ["red", "yellow", "green", "cyan", "blue", "magenta"]
+        chars = ("<{}>{}</>".format(colors[i % len(colors)], c) for i, c in enumerate(text))
+        return "".join(chars)
+
+    def formatter(record):
+        rainbow_message = rainbow(record["message"])
+        # Prevent '{}' in message (if any) to be incorrectly parsed during formatting
+        escaped = rainbow_message.replace("{", "{{").replace("}", "}}")
+        return "<b>{time}</> " + escaped + "\n{exception}"
+
+    logger.add(sys.stderr, format=formatter)
 
 
 Dynamically formatting messages to properly align values with padding
@@ -739,7 +775,7 @@ Things get a little more complicated on Windows. Indeed, this operating system d
 
 Windows requires the added sinks to be picklable or otherwise will raise an error while creating the child process. Many stream objects like standard output and file descriptors are not picklable. In such case, the ``enqueue=True`` argument is required as it will allow the child process to only inherit the queue object where logs are sent.
 
-The |multiprocessing| library is also commonly used to start a pool of workers using for example |Pool.map| or |Pool.apply|. Again, it will work flawlessly on Linux, but it will require some tinkering on Windows. You will probably not be able to pass the ``logger`` as an argument for your worker functions because it needs to be picklable, but altough handlers added using ``enqueue=True`` are "inheritable", they are not "picklable". Instead, you will need to make use of the ``initializer`` and ``initargs`` parameters while creating the |Pool| object in a way allowing your workers to access the shared ``logger``. You can either assign it to a class attribute or override the global logger of your child processes:
+The |multiprocessing| library is also commonly used to start a pool of workers using for example |Pool.map| or |Pool.apply|. Again, it will work flawlessly on Linux, but it will require some tinkering on Windows. You will probably not be able to pass the ``logger`` as an argument for your worker functions because it needs to be picklable, but although handlers added using ``enqueue=True`` are "inheritable", they are not "picklable". Instead, you will need to make use of the ``initializer`` and ``initargs`` parameters while creating the |Pool| object in a way allowing your workers to access the shared ``logger``. You can either assign it to a class attribute or override the global logger of your child processes:
 
 .. code::
 
@@ -785,7 +821,7 @@ The |multiprocessing| library is also commonly used to start a pool of workers u
 
         worker = workers_a.Worker()
         with Pool(4, initializer=worker.set_logger, initargs=(logger, )) as pool:
-            resuts = pool.map(worker.work, [1, 10, 100])
+            results = pool.map(worker.work, [1, 10, 100])
 
         with Pool(4, initializer=workers_b.set_logger, initargs=(logger, )) as pool:
             results = pool.map(workers_b.work, [1, 10, 100])

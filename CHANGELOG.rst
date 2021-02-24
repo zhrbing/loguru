@@ -1,3 +1,24 @@
+`_Unreleased`_
+==============
+
+- Fix ``flake8`` errors and improve code readability (`#353 <https://github.com/Delgan/loguru/issues/353>`_, thanks `@AndrewYakimets <https://github.com/AndrewYakimets>`_).
+
+
+`0.5.3`_ (2020-09-20)
+=====================
+
+- Fix child process possibly hanging at exit while combining ``enqueue=True`` with third party library like ``uwsgi`` (`#309 <https://github.com/Delgan/loguru/issues/309>`_, thanks `@dstlmrk <https://github.com/dstlmrk>`_).
+- Fix possible exception during formatting of non-string messages (`#331 <https://github.com/Delgan/loguru/issues/331>`_).
+
+
+`0.5.2`_ (2020-09-06)
+=====================
+
+- Fix ``AttributeError`` within handlers using ``serialize=True`` when calling ``logger.exception()`` outside of the context of an exception (`#296 <https://github.com/Delgan/loguru/issues/296>`_).
+- Fix error while logging an exception containing a non-picklable ``value`` to a handler with ``enqueue=True`` (`#298 <https://github.com/Delgan/loguru/issues/298>`_).
+- Add support for async callable classes (with ``__call__`` method) used as sinks (`#294 <https://github.com/Delgan/loguru/pull/294>`_, thanks `@jessekrubin <https://github.com/jessekrubin>`_).
+
+
 `0.5.1`_ (2020-06-12)
 =====================
 
@@ -67,7 +88,7 @@
 `0.3.1`_ (2019-07-13)
 =====================
 
-- Fix ``retention`` and ``rotation`` issues when file sink initiliazed with ``delay=True`` (`#113 <https://github.com/Delgan/loguru/issues/113>`_).
+- Fix ``retention`` and ``rotation`` issues when file sink initialized with ``delay=True`` (`#113 <https://github.com/Delgan/loguru/issues/113>`_).
 - Fix ``"sec"`` no longer recognized as a valid duration unit for file ``rotation`` and ``retention`` arguments.
 - Ensure stack from the caller is displayed while formatting exception of a function decorated with ``@logger.catch`` when ``backtrace=False``.
 - Modify datetime used to automatically rename conflicting file when rotating (it happens if file already exists because ``"{time}"`` not presents in filename) so it's based on the file creation time rather than the current time.
@@ -157,7 +178,9 @@
 Initial release.
 
 
-.. _Unreleased: https://github.com/delgan/loguru/compare/0.5.1...master
+.. _Unreleased: https://github.com/delgan/loguru/compare/0.5.3...master
+.. _0.5.3: https://github.com/delgan/loguru/releases/tag/0.5.3
+.. _0.5.2: https://github.com/delgan/loguru/releases/tag/0.5.2
 .. _0.5.1: https://github.com/delgan/loguru/releases/tag/0.5.1
 .. _0.5.0: https://github.com/delgan/loguru/releases/tag/0.5.0
 .. _0.4.1: https://github.com/delgan/loguru/releases/tag/0.4.1
